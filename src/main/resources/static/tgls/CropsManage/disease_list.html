@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1">
+    <!-- Google Chrome Frame也可以让IE用上Chrome的引擎: -->
+    <meta name="renderer" content="webkit">
+    <!--国产浏览器高速模式-->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- 公共样式 开始 -->
+    <link rel="stylesheet" type="text/css" href="../../css/base.css">
+    <link type="text/css" href="../../css/loading.css" rel="stylesheet" />
+    <link rel="stylesheet" type="text/css" href="../../css/iconfont.css">
+    <script type="text/javascript" src="../../framework/jquery-1.11.3.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../layui/css/layui.css">
+    <script type="text/javascript" src="../../layui/layui.js"></script>
+    <!-- 滚动条插件 -->
+    <link rel="stylesheet" type="text/css" href="../../css/jquery.mCustomScrollbar.css">
+    <script src="../../framework/jquery-ui-1.10.4.min.js"></script>
+    <script src="../../framework/jquery.mousewheel.min.js"></script>
+    <script src="../../framework/jquery.mCustomScrollbar.min.js"></script>
+    <script src="../../framework/cframe.js"></script>
+    <script src="https://s2.pstatp.com/cdn/expire-1-M/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+    <script src="../../js/verification.js"></script>
+    <script src="../../js/util.js"></script>
+    <style>
+        .layui-table img {
+            max-width: none;
+            margin-right: 5px;
+        }
+    </style>
+    <title></title>
+
+</head>
+
+<body>
+<!--<div class="loading">Loading</div>-->
+<div class="cBody">
+    <div class="console">
+        <form class="layui-form" >
+            <div class="layui-form-item">
+                <div class="layui-input-inline">
+                    <input type="text" id="name" lay-verify="required" placeholder="输入病害名称" autocomplete="off" class="layui-input">
+                </div>
+                <div class="layui-input-inline">
+                    <select name="type" id="type">
+                        <option value="">患病作物类型</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="type" id="crop">
+                        <option value="">患病作物名称</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="parts" id="parts">
+                        <option value="">患病作物部位</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+        <button class="layui-btn" onclick="searchDisease()">检索</button>
+        <a class="layui-btn" href="disease_add.html">添加病害</a>
+        <div>
+        </div>
+        <script>
+            layui.use('form', function() {
+                var form = layui.form;
+
+                //监听提交
+                form.on('submit(formDemo)', function(data) {
+                    layer.msg(JSON.stringify(data.field));
+                    return false;
+                });
+            });
+        </script>
+    </div>
+
+    <table class="layui-table">
+        <thead>
+        <tr>
+            <th>病害名称</th>
+            <th>病害图片</th>
+            <th>特征</th>
+            <th>患病作物</th>
+            <th>作物类型</th>
+            <th>病变部位</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="diseaseBody"></tbody>
+    </table>
+
+    <!-- layUI 分页模块 -->
+    <div id="pages"></div>
+    <script>
+        var typeMap = new Map();
+        var partsMap = new Map();
+        var ifLodePage = false;
+        var _crop =  $('#crop');
+        let name = decodeURI(decodeURI(getQueryVariable('name')));
+        let type = getQueryVariable('type');
+        let parts = getQueryVariable('parts');
+        let crop = getQueryVariable('crop');
+        $(document).ready(function () {
+            getTypeList();
+        });
+
+        function getDisease(page,pageSize){
+            $('#name').val(name);
+            $('#type').val(type);
+            $('#parts').val(parts);
+            getCropList(true);
+            refreshList();
+            $.ajax({
+                url: path_name+"/disease/getDisease",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                data: {
+                    name: name,
+                    type: type,
+                    parts : parts,
+                    crop:crop,
+                    page : page,
+                    pageSize:pageSize
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if(result.code===200){
+                        clearStaticList();
+                        addStaticList(result.data.list);
+                        if (!ifLodePage) {
+                            addPage(result.data.total);
+                        }
+                    }
+                }
+            });
+        }
+
+        function getTypeList() {
+            $.ajax({
+                url: path_name+"/crop/getTypeList",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if(result.code===200){
+                        let typeSelect = $('#type');
+                        result.data.forEach(function (data) {
+                            typeMap.set(data.id, data.name);
+                            typeSelect.append('<option value="' + data.id + '">' + data.name + '</option>')
+                        });
+                        getParts();
+                    }
+                }
+            });
+        }
+
+        function getParts() {
+            $.ajax({
+                url: path_name+"/crop/getParts",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if(result.code===200){
+                        //partsMap
+                        let partsSelect = $('#parts');
+                        result.data.forEach(function (data) {
+                            partsMap.set(data.id, data.name);
+                            partsSelect.append('<option value="' + data.id + '">' + data.name + '</option>')
+                        });
+                        getDisease(1,10);
+                    }
+                }
+            });
+        }
+
+        function searchDisease() {
+            let name = $('#name').val().replace(/(^\s*)|(\s*$)/g, '');
+            let type = $('#type').val();
+            let parts = $('#parts').val();
+            let crop = _crop.val();
+            if (name===''&&type===''&&parts==='') return;
+            //console.log(location.protocol + '//' + location.host + location.pathname+"?name="+encodeURI(encodeURI(name))+"&type="+type);
+            window.location.href=location.protocol + '//' + location.host + location.pathname+"?name="+encodeURI(encodeURI(name))+"&type="+type+"&parts="+parts+"&crop="+crop;
+        }
+
+        function refreshList(){
+            layui.use(['form', 'laydate'], function () {
+                var form = layui.form;
+                form.render();
+                $('#type').next().children('dl').children().attr('onclick','getCropList(false)');
+            });
+        }
+
+        function addSelectList(event,data){
+            data.forEach(function (data) {
+                event.append('<option value="' + data.id + '">' + data.name + '</option>')
+            });
+            refreshList()
+        }
+
+        function addStaticList(data) {
+            let diseaseBody = $('#diseaseBody');
+            data.forEach(function (value) {
+                diseaseBody.append('<tr disease="'+value.id+'"><td>'+value.name+'</td>' +
+                    '<td></td>' +
+                    '<td>'+value.features+'</td><td crop="'+value.cropID+'">'+value.crop+'</td><td type="'+value.type+'">'+typeMap.get(value.type)+'</td><td parts="'+value.parts+'">'+partsMap.get(value.parts)+'</td>\n' +
+                    '<td><button class="layui-btn layui-btn-xs" onclick="updateBut(this)">修改</button>\n' +
+                    '<button class="layui-btn layui-btn-xs" onclick="deleteBut(this)">删除</button></td></tr>');
+                let tdImage = $("tr[disease=" + value.id + "]").children().eq(1);
+                let src = value.image.split('|');
+                for (let i=0;i<src.length;i++)
+                tdImage.append('<img name="img_'+value.id+'" src="../../files/image/diseaseImage/'+src[i]+'" width="20" height="20" onmouseenter="imgBig(this)" onmouseleave="imgSmall(this)" alt=""/>');
+            });
+        }
+
+        function addPage(count){
+            layui.use('laypage', function () {
+                var laypage = layui.laypage;
+                //总页数大于页码总数
+                laypage.render({
+                    elem: 'pages'
+                    , count: count
+                    , layout: ['count', 'prev', 'page', 'next', 'limit', 'skip']
+                    , jump: function (obj) {
+                        if (ifLodePage) {
+                            getDisease(obj.curr,obj.limit);
+                        }
+                        ifLodePage = true
+                    }
+                });
+            });
+        }
+
+        function clearStaticList() {
+            $("#diseaseBody").empty();
+        }
+
+        function deleteBut(event){
+            layui.use(['form', 'laydate'], function () {
+                layer.confirm('确定要删除么？', {
+                    btn: ['确定', '取消'] //按钮
+                }, function () {
+                    let tr = $(event).parent().parent();
+                    $.ajax({
+                        url: path_name+"/disease/deleteDisease",
+                        type: "POST",
+                        dataType: "json",
+                        headers: {
+                            token: $.cookie('token')
+                        },
+                        data: {
+                            id: tr.attr('disease')
+                        },
+                        success: function (result) {
+                            freshToken(result);
+                            if (result.code === 200 && result.data>0) {
+                                tr.remove();
+                                layer.msg('删除成功', {
+                                    icon: 1
+                                });
+                                //console.log(result);
+                            } else alert('删除失败')
+                        }
+                    });
+                }, function () {
+                    layer.msg('取消删除', {
+                        time: 1000 //20s后自动关闭
+                    });
+                });
+            });
+        }
+
+        //修改按钮
+        var updateFrame = null;
+        function updateBut(event){
+            layui.use('layer', function() {
+                var layer = layui.layer;
+                //iframe层-父子操作
+                updateFrame = layer.open({
+                    title: "信息修改",
+                    type: 2,
+                    area: ['70%', '60%'],
+                    scrollbar: false,	//默认：true,默认允许浏览器滚动，如果设定scrollbar: false，则屏蔽
+                    maxmin: true,
+                    content: 'disease_update.html?id='+$(event).parent().parent().attr('disease')
+                });
+            });
+        }
+
+        function clearCropList(){
+            _crop.children().remove();
+            _crop.append('<option value="">作物名称</option>');
+            refreshList()
+        }
+
+        function getCropList(isDefault){
+            clearCropList();
+            let type = $('#type').val();
+            if (type==='')return;
+            $.ajax({
+                url: path_name+"/crop/getCropList",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                data: {
+                    type: type,
+                    name: ''
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if (result.code === 200) {
+                        result.data.list.forEach(function (data) {
+                            _crop.append('<option value="' + data.id + '">' + data.name + '</option>')
+                        });
+                        if (isDefault)  _crop.val(crop);
+                        refreshList()
+                    }
+                }
+            });
+        }
+    </script>
+</div>
+</body>
+
+</html>

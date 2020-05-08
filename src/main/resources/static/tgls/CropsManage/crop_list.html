@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1">
+    <!-- Google Chrome Frame也可以让IE用上Chrome的引擎: -->
+    <meta name="renderer" content="webkit">
+    <!--国产浏览器高速模式-->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+
+    <!-- 公共样式 开始 -->
+    <link rel="stylesheet" type="text/css" href="../../css/base.css">
+    <link rel="stylesheet" type="text/css" href="../../css/iconfont.css">
+    <script type="text/javascript" src="../../framework/jquery-1.11.3.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="../../layui/css/layui.css">
+    <script type="text/javascript" src="../../layui/layui.js"></script>
+    <!-- 滚动条插件 -->
+    <link rel="stylesheet" type="text/css" href="../../css/jquery.mCustomScrollbar.css">
+    <script src="../../framework/jquery-ui-1.10.4.min.js"></script>
+    <script src="../../framework/jquery.mousewheel.min.js"></script>
+    <script src="../../framework/jquery.mCustomScrollbar.min.js"></script>
+    <script src="../../framework/cframe.js"></script><!-- 仅供所有子页面使用 -->
+    <script src="https://s2.pstatp.com/cdn/expire-1-M/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+    <script src="../../js/verification.js"></script>
+    <script src="../../js/util.js"></script>
+    <!-- 公共样式 结束 -->
+
+    <style>
+        .layui-table img {
+            max-width: none;
+        }
+    </style>
+    <script>
+        let typeMap = new Map();
+        let ifLodePage = false;
+        $(document).ready(function () {
+            getDate();
+        });
+
+        function listenSubmit() {
+            layui.use('form', function () {
+                var form = layui.form;
+                console.log('!');
+                //监听提交
+                form.on('submit()', function (data) {
+                    layer.msg(JSON.stringify(data.field));
+                    return false;
+                });
+            });
+        }
+        
+        function getDate() {
+            $.ajax({
+                url: path_name+"/crop/getTypeList",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if(result.code===200){
+                        for (let i = 0; i < result.data.length; i++)
+                            typeMap.set(result.data[i].id, result.data[i].name);
+                        getCropList(1,10);
+                        addSelectList($('#cropType'));
+                    }
+                }
+            });
+        }
+
+        function getCropList(page,pageSize) {
+            let name = decodeURI(decodeURI(getQueryVariable('name')));
+            let type = getQueryVariable('type');
+            $.ajax({
+                url: path_name+"/crop/getCropList",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                data: {
+                    name: name,
+                    type: type,
+                    page: page,
+                    pageSize:pageSize
+                },
+                success: function (result) {
+                    //console.log(result);
+                    freshToken(result);
+                    if (result.code === 200) {
+                        clearStaticList();
+                        for (let i = 0; i < result.data.list.length; i++)
+                            addStaticList(result.data.list[i].name, result.data.list[i].id, result.data.list[i].type);
+                        if (!ifLodePage) {
+                            addPage(result.data.total);
+                        }
+                    }
+                }
+            });
+        }
+
+        function addStaticList(name, id, type) {
+            $('#cropBody').append('<tr>\n' +
+                '<td>' + name + '</td>\n' +
+                '<td type_id="' + type + '">' + typeMap.get(type) + '</td>\n' +
+                '<td>\n' +
+                '<button class="layui-btn layui-btn-xs" onclick="updateCrop(this)" crop_id="' + id + '">修改</button>\n' +
+                '<button class="layui-btn layui-btn-xs" onclick="deleteCrop(this)">删除</button>\n' +
+                '</td>\n' +
+                '</tr>')
+        }
+
+        function addSelectList(event) {
+            typeMap.forEach(function (value, key) {
+                event.append('<option value="' + key + '">' + value + '</option>')
+            });
+            layui.use(['form', 'laydate'], function () {
+                var form = layui.form;
+                form.render();
+            });
+        }
+
+        function addCrop() {
+            let str = '<tr>' +
+                '<td><input type="text"  required autocomplete="off" class="layui-input"></td>' +
+                '<td><form class="layui-form" style="margin-top:12px" action=""><div class="layui-form-item"><div class="layui-input-inline">' +
+                '<select name="newCropType" id="newCropType"><option value="">作物类型</option></select>' +
+                '</div></div></form></td><td>' +
+                '<button class="layui-btn layui-btn-xs" onclick="addSubmit(this)">提交</button>' +
+                '<button class="layui-btn layui-btn-xs" onclick="cancel(this)">取消</button></td></tr>';
+            $("#cropBody").prepend(str);
+            addSelectList($('select[name="newCropType"]'))
+        }
+
+        function clearStaticList() {
+            $("#cropBody").empty();
+        }
+
+        function addSubmit(event) {
+            let name = $(event).parent().prev().prev().children('input').val().replace(/(^\s*)|(\s*$)/g, '');
+            let type = $('#newCropType').val();
+            //console.log('name:'+name);
+            //console.log('type:'+type);
+            if (name === '') {
+                alert('请输入作物名称');
+                return
+            }
+            if (type === '') {
+                alert('请选择作物类型');
+                return
+            }
+            $.ajax({
+                url: path_name+"/crop/addCrop",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                data: {
+                    name: name,
+                    type: type
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if (result.code === 200) {
+                        //console.log(result);
+                        alert('提交成功');
+                        addStaticList(result.data.name, result.data.id, result.data.type);
+                        $(event).parent().parent().remove();
+                    } else {
+                        alert('提交失败')
+                    }
+                }
+            });
+        }
+
+        function cancel(_this) {
+            $(_this).parent().parent().remove();
+        }
+
+        //删除
+        function deleteCrop(_this) {
+            layui.use(['form', 'laydate'], function () {
+                layer.confirm('确定要删除么？', {
+                    btn: ['确定', '取消'] //按钮
+                }, function () {
+                    $.ajax({
+                        url: path_name+"/crop/deleteCrop",
+                        type: "POST",
+                        dataType: "json",
+                        headers: {
+                            token: $.cookie('token')
+                        },
+                        data: {
+                            id: $(_this).prev().attr('crop_id')
+                        },
+                        success: function (result) {
+                            freshToken(result);
+                            if (result.code === 200) {
+                                $(_this).parent().parent().remove();
+                                layer.msg('删除成功', {
+                                    icon: 1
+                                });
+                                //console.log(result);
+                            } else alert('删除失败')
+                        }
+                    });
+                }, function () {
+                    layer.msg('取消删除', {
+                        time: 1000 //20s后自动关闭
+                    });
+                });
+            });
+        }
+
+        function updateCrop(event) {
+            let cropId = $(event).attr('crop_id');
+            let oldName = $(event).parent().prev().prev();
+            let oldType = $(event).parent().prev();
+            let oldButton = $(event).parent();
+            let str = '<td><input type="text" value="' + oldName.text() + '" autocomplete="off" class="layui-input"></td>' +
+                '<td><form class="layui-form" style="margin-top:12px" action=""><div class="layui-form-item"><div class="layui-input-inline">' +
+                '<select name="updateCropType" id="updateCropType"><option value="">作物类型</option></select>' +
+                '</div></div></form></td>' +
+                '<td><button class="layui-btn layui-btn-xs" onclick="updateSubmit(this)" crop_id="' + cropId + '">提交</button>' +
+                '<button class="layui-btn layui-btn-xs" onclick="updateCancel(this)">取消</button></td></tr>';
+            oldName.hide();
+            oldType.hide();
+            oldButton.hide();
+            $(event).parent().parent().prepend(str);
+            let updateCropType = $('#updateCropType');
+            addSelectList(updateCropType);
+            updateCropType.next().children('dl').children('[lay-value="' + oldType.attr('type_id') + '"]').addClass('layui-this');
+            updateCropType.val(oldType.attr('type_id'));
+        }
+
+        function updateSubmit(event) {
+            let cropId = $(event).attr('crop_id');
+            let newName = $(event).parent().prev().prev().children().val();
+            let newType = $(event).parent().prev().children().children().children().children('select').val();
+            $.ajax({
+                url: path_name+"/crop/updateCrop",
+                type: "POST",
+                dataType: "json",
+                headers: {
+                    token: $.cookie('token')
+                },
+                data: {
+                    id: cropId,
+                    name: newName,
+                    type: newType
+                },
+                success: function (result) {
+                    freshToken(result);
+                    if (result.code === 200) {
+                        alert('提交成功');
+                        $(event).parent().next().text(newName);
+                        $(event).parent().next().next().text(typeMap.get(newType)).attr('type_id', newType);
+                        updateCancel(event);
+                    } else {
+                        alert('提交失败')
+                    }
+                }
+            });
+        }
+
+        function updateCancel(event) {
+            $(event).parent().prev().prev().remove();
+            $(event).parent().prev().remove();
+            $(event).parent().parent().children().show();
+            $(event).parent().remove();
+        }
+
+        function searchCrop() {
+            let name = $('#name').val().replace(/(^\s*)|(\s*$)/g, '');
+            let type = $('#cropType').val();
+            if (name===''&&type==='') return;
+            //console.log(location.protocol + '//' + location.host + location.pathname+"?name="+encodeURI(encodeURI(name))+"&type="+type);
+            window.location.href=location.protocol + '//' + location.host + location.pathname+"?name="+encodeURI(encodeURI(name))+"&type="+type;
+        }
+
+        function addPage(count){
+            layui.use('laypage', function () {
+                var laypage = layui.laypage;
+                //总页数大于页码总数
+                laypage.render({
+                    elem: 'pages'
+                    , count: count
+                    , layout: ['count', 'prev', 'page', 'next', 'limit', 'skip']
+                    , jump: function (obj) {
+                        //console.log(obj);
+                        if (ifLodePage) {
+                            getCropList(obj.curr,obj.limit);
+                        }
+                        ifLodePage = true
+                    }
+                });
+            });
+        }
+    </script>
+</head>
+
+<body>
+<div class="cBody">
+    <div class="console">
+        <div class="layui-form-item">
+            <form class="layui-form" action="">
+                <div class="layui-input-inline">
+                    <input type="text" id="name" placeholder="输入作物名称" autocomplete="off" class="layui-input">
+                </div>
+                <div class="layui-input-inline">
+                    <select name="cropType" id="cropType">
+                        <option value="">作物类型</option>
+                    </select>
+                </div>
+            </form>
+            <button class="layui-btn" onclick="searchCrop()">检索</button>
+            <a class="layui-btn" onclick="addCrop()">添加作物</a>
+        </div>
+
+    </div>
+
+    <table class="layui-table">
+        <thead>
+        <tr>
+            <th>作物名称</th>
+            <th>作物类型</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="cropBody">
+        </tbody>
+    </table>
+
+    <!-- layUI 分页模块 -->
+    <div id="pages"></div>
+</div>
+</body>
+
+</html>

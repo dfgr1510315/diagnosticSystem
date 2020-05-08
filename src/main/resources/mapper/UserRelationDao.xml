@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljz.diagnostic_system.dao.UserRelationDao">
+
+    <select id="loadUserByEmail" parameterType="java.lang.String" resultType="com.ljz.diagnostic_system.model.UserProfile">
+        select id,username,password from user where email = #{email} limit 1
+    </select>
+
+    <select id="loadUserById" parameterType="java.lang.String" resultType="com.ljz.diagnostic_system.model.UserProfile">
+        select username,password from user where id = #{id} limit 1
+    </select>
+
+    <insert id="register" parameterType="com.ljz.diagnostic_system.model.UserProfile" >
+        insert into user (id,username,password,email) values(#{id},#{username},#{password},#{email})
+    </insert>
+
+
+    <update id="newUsername">
+        update user set username=#{newName} where id=#{id}
+    </update>
+
+    <update id="newPassword">
+        update user set password=#{password} where id=#{id}
+    </update>
+</mapper>

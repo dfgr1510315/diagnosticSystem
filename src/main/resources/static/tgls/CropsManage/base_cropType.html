@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1">
+		<!-- Google Chrome Frame也可以让IE用上Chrome的引擎: -->
+		<meta name="renderer" content="webkit">
+		<!--国产浏览器高速模式-->
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title></title>
+
+		<!-- 公共样式 开始 -->
+		<link rel="stylesheet" type="text/css" href="../../css/base.css">
+		<link rel="stylesheet" type="text/css" href="../../css/iconfont.css">
+		<script type="text/javascript" src="../../framework/jquery-1.11.3.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="../../layui/css/layui.css">
+		<script type="text/javascript" src="../../layui/layui.js"></script>
+		<!-- 滚动条插件 -->
+		<link rel="stylesheet" type="text/css" href="../../css/jquery.mCustomScrollbar.css">
+		<script src="../../framework/jquery-ui-1.10.4.min.js"></script>
+		<script src="../../framework/jquery.mousewheel.min.js"></script>
+		<script src="../../framework/jquery.mCustomScrollbar.min.js"></script>
+		<script src="../../framework/cframe.js"></script><!-- 仅供所有子页面使用 -->
+		<script src="https://s2.pstatp.com/cdn/expire-1-M/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+		<script src="../../js/verification.js"></script>
+		<!-- 公共样式 结束 -->
+		
+		<style>
+			.searchResult{
+				position: absolute;
+				top: 50px;
+				left: 15px;
+				z-index: 10;
+				background-color: #FFF;
+				width: 100px;
+				border: 1px solid #d2d2d2;
+				border-radius: 2px;
+			}
+			.searchResult li{
+			    padding: 0 10px;
+			    line-height: 36px;
+			    white-space: nowrap;
+			    overflow: hidden;
+			    text-overflow: ellipsis;
+			    cursor: pointer;
+			}
+			.searchResult li:hover{
+				background-color: #eee;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="cBody">
+			<div class="console">
+				<div class="layui-form-item">
+					<a class="layui-btn" onclick="addTypeList('TypeList')">新增</a>
+				</div>
+			</div>
+			<input type='hidden'  id='' value =''/>
+			<table id="TypeList" class="layui-table">
+				<thead>
+					<tr>
+						<th>作物种类</th>
+						<th>操作</th>
+					</tr>
+				</thead>
+				<tbody id="TypeBody">
+				</tbody>
+			</table>
+		</div>
+		<script>
+			$(document).ready(function(){
+				getTypeList();
+			});
+			//新增
+			function addTypeList(id){
+				let str = '<tr>'+
+							'<td>'+
+							    '<input type="text" name="phone" lay-verify="required" autocomplete="off" class="layui-input">'+
+							'</td>'+
+							'<td>'+
+								'<a class="layui-btn layui-btn-xs" onclick="cancel(this)">取消</a>'+
+						        '<a class="layui-btn layui-btn-xs" onclick="addSubmit(this)">提交</a>'+
+							'</td>'+
+						'</tr>';
+				$("#"+id).prepend(str);
+				//重新初始化Iframe的高度
+				cframeInit();
+			}
+			function cancel(_this) {
+				$(_this).parent().parent().remove();
+			}
+			//提交
+			function addSubmit(_this) {
+				//console.log($(_this).parent().prev().children().val());
+				let name = $(_this).parent().prev().children().val();
+				$.ajax({
+					url: path_name+"/crop/addType",
+					type: "POST",
+					dataType: "json",
+					headers: {
+						token: $.cookie('token')
+					},
+					data:{
+						name: name
+					},
+					success: function (result) {
+						freshToken(result);
+						if(result.code===200&&result .data.id>0){
+							alert('添加成功');
+							addStaticList(result.data.name,result.data.id);
+							$(_this).parent().parent().remove()
+						}else{
+							alert('添加失败')
+						}
+					}
+				});
+			}
+			//删除
+			function deleteCropType(_this){
+				layui.use(['form','laydate'], function() {
+					layer.confirm('确定要删除么？', {
+						btn: ['确定', '取消'] //按钮
+					}, function() {
+						$.ajax({
+							url: path_name+"/crop/deleteType",
+							type: "POST",
+							dataType: "json",
+							headers: {
+								token: $.cookie('token')
+							},
+							data:{
+								id: $(_this).attr('id')
+							},
+							success: function (result) {
+								freshToken(result);
+								if(result.code===200){
+									$(_this).parent().parent().remove();
+									layer.msg('删除成功', {
+										icon: 1
+									});
+									//console.log(result);
+								}else alert('删除失败')
+							}
+						});
+					}, function() {
+						layer.msg('取消删除', {
+							time: 1000 //20s后自动关闭
+						});
+					});
+				});
+			}
+
+			function getTypeList() {
+				$.ajax({
+					url: path_name+"/crop/getTypeList",
+					type: "POST",
+					dataType: "json",
+					headers: {
+						token: $.cookie('token')
+					},
+					success: function (result) {
+						freshToken(result);
+						if(result.code===200){
+							for (let i=0;i<result.data.length;i++){
+								addStaticList(result.data[i].name,result.data[i].id);
+							}
+						}
+					}
+				});
+			}
+
+			function addStaticList(id,name) {
+				$('#TypeBody').append(
+						'<tr>\n' +
+						'  <td>'+id+'</td>\n' +
+						'  <td>\n' +
+						'    <a class="layui-btn layui-btn-xs" onclick="deleteCropType(this)" id="'+name+'">删除</a>\n' +
+						'  </td>\n' +
+						'</tr>'
+				);
+			}
+
+		</script>
+	</body>
+
+</html>

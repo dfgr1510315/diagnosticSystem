@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljz.diagnostic_system.dao.DiseaseDao">
+    <insert id="addDisease" parameterType="Disease" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        insert into crop_disease (name,features,information,image,crop,parts) values(#{name},#{features},#{information},#{image},#{crop},#{parts})
+    </insert>
+
+    <select id="getDisease" parameterType="GetDisease"  resultType="Disease">
+        select crop_disease.id,crop_disease.name,features,image,crop.name as crop,crop as cropID,parts,type from crop,crop_disease
+        <where>
+                crop.id = crop_disease.crop
+            <if test="name!=''">
+                and crop_disease.name like #{name}"%"
+            </if>
+            <if test="crop!=''">
+                and crop_disease.crop = #{crop}
+            </if>
+            <if test="type!=''">
+                and type = #{type}
+            </if>
+            <if test="parts!=''">
+                and parts = #{parts}
+            </if>
+        </where>
+    </select>
+
+    <delete id="deleteDisease">
+        delete from crop_disease where id=#{id}
+    </delete>
+
+    <select id="getInformation" resultType="String">
+        select information from crop_disease where id=#{id}
+    </select>
+
+    <update id="diseaseUpdate">
+        update crop_disease
+        <set>
+            <if test="name!=''">name = #{name}</if>
+            <if test="image!=''">,image = #{image}</if>
+            <if test="features!=''">,features = #{features}</if>
+            <if test="information!=''">,information = #{information}</if>
+            <if test="cropID!=''">,crop = #{cropID}</if>
+            <if test="parts!=''">,parts = #{parts}</if>
+        </set>
+        where id=#{id}
+    </update>
+
+    <!-- 作物id、病变部位 -->
+    <select id="diagnosisDisease" parameterType="Disease" resultType="Disease">
+        select id,name,information,image,features from crop_disease where crop=#{cropID} and parts=#{parts}
+    </select>
+</mapper>

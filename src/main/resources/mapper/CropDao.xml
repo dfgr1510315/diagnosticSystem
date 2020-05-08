@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ljz.diagnostic_system.dao.CropDao">
+
+    <select id="getTypeList"  resultType="com.ljz.diagnostic_system.model.CropType">
+        select id,name from crop_type
+    </select>
+
+    <select id="getParts"  resultType="com.ljz.diagnostic_system.model.CropType">
+        select id,name from crop_parts
+    </select>
+
+    <insert id="addType" parameterType="com.ljz.diagnostic_system.model.CropType" useGeneratedKeys="true" keyProperty="id"  keyColumn="id">
+        insert into crop_type (name) values(#{name})
+    </insert>
+
+    <delete id="deleteType">
+        delete from crop_type where id=#{id}
+    </delete>
+
+    <select id="getCropList" parameterType="com.ljz.diagnostic_system.model.Crop"  resultType="com.ljz.diagnostic_system.model.Crop">
+        select id,name,type from crop
+        <where>
+            <if test="name!=''">
+                and name like #{name}"%"
+            </if>
+            <if test="type!=''">
+                and type = #{type}
+            </if>
+        </where>
+    </select>
+
+    <insert id="addCrop" parameterType="com.ljz.diagnostic_system.model.Crop" useGeneratedKeys="true" keyProperty="id"  keyColumn="id">
+        insert into crop (name,type) values(#{name},#{type})
+    </insert>
+
+    <delete id="deleteCrop">
+        delete from crop where id=#{id}
+    </delete>
+
+    <update id="updateCrop">
+        update crop set name=#{name},type=#{type} where id=#{id}
+    </update>
+</mapper>
